@@ -110,8 +110,6 @@ void interp_block(void), func_ret(void);
 int func_pop(void), is_var(char *s), get_token(void);
 char *find_func(char *name);
 
-#include "test.h"
-
 //int main_c(int argc, char **argv)
 int main_c()
 {

@@ -574,13 +574,10 @@ int restart() {
 #define MEGABYTE 1048576
 #define GIGABYTE 1073741824
 
-extern unsigned char program[];
-
 void loaddisk() {
     for(unsigned int i=0; i<2880; i++) {
         read_from_disk(i, (void*)0x100000+(512*i), 512);
     }
-    printf("program = %p\n", &program[0]);
 }
 
 void cat(const char *addr) {
