@@ -20,7 +20,7 @@ int setpal() {
     port_byte_out(0x03C8, 0); // Indexregister setzen
     port_byte_out(0x03C9, 0); // Rotwert
     port_byte_out(0x03C9, 0); // Grünwert
-    port_byte_out(0x03C9, 0); // Blauwert
+    port_byte_out(0x03C9, 127); // Blauwert
 
     // Farbendaten für Weiß (Farbe 15)
     port_byte_out(0x03C8, 15); // Indexregister setzen
@@ -29,14 +29,20 @@ int setpal() {
     port_byte_out(0x03C9, 255); // Blauwert
 
     // Graduelle Blauabstufungen (Farben 1-14)
-    for (int i = 1; i <= 14; i++) {
+    for (int i = 0; i < 15; i++) {
         port_byte_out(0x03C8, i); // Indexregister setzen
+        port_byte_out(0x03C9, 0); // Rotwert
+        port_byte_out(0x03C9, i * 16); // Grünwert
+        port_byte_out(0x03C9, 0); // Blauwert (graduell anpassen)
+    }
+
+    for(int i = 0; i < 16; i++) {
+        port_byte_out(0x03C8, 7); // Indexregister setzen
         port_byte_out(0x03C9, 0); // Rotwert
         port_byte_out(0x03C9, 0); // Grünwert
         port_byte_out(0x03C9, i * 16); // Blauwert (graduell anpassen)
+        sleep(1000);
     }
-
-    // Deine Farben sind jetzt gesetzt!
 
     return 0;
 }

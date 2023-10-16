@@ -29,7 +29,7 @@ struct KeyData keyData[] = {
     {"3", '3', 0x15, 0xFC, SC_KEY_3},
     {"4", '4', '$', 0xAC, SC_KEY_4},
     {"5", '5', '%', 0xAB, SC_KEY_5},
-    {"6", '6', '&', '¬', SC_KEY_6},
+    {"6", '6', '&', 0, SC_KEY_6},
     {"7", '7', '\'', '{', SC_KEY_7},
     {"8", '8', '(', '[', SC_KEY_8},
     {"9", '9', ')', ']', SC_KEY_9},
@@ -48,7 +48,7 @@ struct KeyData keyData[] = {
     {"I", 'i', 'I', 'I', SC_KEY_I},
     {"O", 'o', 'O', 0xEA, SC_KEY_O},
     {"P", 'p', 'P', 0xE3, SC_KEY_P},
-    {"[", '[', '{', '{', SC_LEFT_BRACKET},
+    {"KEY_UE", 0x81, 0x9A, 0, SC_LEFT_BRACKET},
     {"RIGHT_BRACKET", '+', '*', '~', SC_RIGHT_BRACKET},
     {"Enter", '\n', '\n', '\n', SC_ENTER},
     {"Lctrl", 0, 0, 0, SC_LEFT_CTRL},
@@ -61,8 +61,8 @@ struct KeyData keyData[] = {
     {"J", 'j', 'J', 'J', SC_KEY_J},
     {"K", 'k', 'K', 'K', SC_KEY_K},
     {"L", 'l', 'L', 0x5E, SC_KEY_L},
-    {";", ';', ':', ':', SC_SEMICOLON},
-    {"'", '\'', '"', '"', SC_APOSTROPHE},
+    {"KEY_OE", 0x94, 0x99, 0, SC_SEMICOLON},
+    {"KEY_AU", 0x84, 0x8E, 0, SC_APOSTROPHE},
     {"ACCENT", 0x5E, 0xF8, 0x27, SC_GRAVE_ACCENT},
     {"LShift", 0, 0, 0, SC_LEFT_SHIFT},
     {"BACKSLASH", '#', '\'', 0, SC_BACKSLASH},
@@ -167,7 +167,7 @@ bool is_key_pressed(unsigned char scancode) {
 }
 
 unsigned char getkey() {
-    sleep(33);
+    sleep(10);
     while ( !(read_keyboard_status() & 0x01)) { }
     uint8_t scancode = read_keyboard_data();
     return scancode;
