@@ -34,6 +34,7 @@ run: os-image.bin
 	dd if=/dev/zero of=disk_image.img bs=512 count=2880
 	dd if=os-image.bin of=disk_image.img conv=notrunc
 	dd if=test.pc of=disk_image.img bs=1 seek=1048576 conv=notrunc
+	make clean
 	qemu-system-i386 -m 1024 -vga std -rtc "base=2023-08-03T12:34:56" -soundhw pcspk -device sb16 -drive format=raw,file=disk_image.img
 	dd if=disk_image.img of=test.pc bs=1 skip=1048576 count=1024
 

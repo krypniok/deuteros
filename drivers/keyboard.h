@@ -101,8 +101,18 @@
 #define SC_INSERT       0x52
 #define SC_DELETE       0x53
 
+// Define a struct to hold key data
+struct KeyData {
+    const char* name;
+    char ascii;
+    char ascii_upper;
+    char ascii_alt;
+    int scancode;  // New field for scancode
+};
+
+// Define an array of key data
+extern struct KeyData keyData[];
 
 void init_keyboard();
 bool is_key_pressed(unsigned char scancode);
-
 unsigned char getkey();

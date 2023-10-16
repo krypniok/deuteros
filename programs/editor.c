@@ -16,57 +16,6 @@ unsigned char text_buffer[MAX_BUFFER_SIZE];
 int text_buffer_index = 0;
 
 
-const unsigned char* sc_name3[] = {"VROOM", "Esc", "1", "2", "3", "4", "5", "6",
-                         "7", "8", "9", "0", "-", "=", "Backspace", "Tab", "Q", "W", "E",
-                         "R", "T", "Z", "U", "I", "O", "P", "[", "]", "Enter", "Lctrl",
-                         "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "'", "`",
-                         "LShift", "\\", "Y", "X", "C", "V", "B", "N", "M", ",", ".",
-                         "/", "RShift", "Keypad *", "LAlt", "Spacebar", "CapsLock",
-                         "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10",
-                         "NumLock", "ScrollLock", "Keypad 7", "Keypad 8", "Keypad 9",
-                         "Keypad -", "Keypad 4", "Keypad 5", "Keypad 6", "Keypad +",
-                         "Keypad 1", "Keypad 2", "Keypad 3", "Keypad 0", "Keypad .",
-                         "AltSysReq", "???", "???", "F11", "F12",
-                         "UP_ARROW", "DOWN_ARROW", "LEFT_ARROW", "RIGHT_ARROW"};
-
-const unsigned char sc_name8[][12] = {"VROOOM", "Esc", "1", "2", "3", "4", "5", "6",
-                         "7", "8", "9", "0", "-", "=", "Backspace", "Tab", "Q", "W", "E",
-                         "R", "T", "Z", "U", "I", "O", "P", "[", "]", "Enter", "Lctrl",
-                         "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "'", "`",
-                         "LShift", "\\", "Y", "X", "C", "V", "B", "N", "M", ",", ".",
-                         "/", "RShift", "Keypad *", "LAlt", "Spacebar", "CapsLock",
-                         "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10",
-                         "NumLock", "ScrollLock", "Keypad 7", "Keypad 8", "Keypad 9",
-                         "Keypad -", "Keypad 4", "Keypad 5", "Keypad 6", "Keypad +",
-                         "Keypad 1", "Keypad 2", "Keypad 3", "Keypad 0", "Keypad .",
-                         "AltSysReq", "???", "???", "F11", "F12",
-                         "UP_ARROW", "DOWN_ARROW", "LEFT_ARROW", "RIGHT_ARROW"};
-
-
-const unsigned char sc_ascii4[] = {'?', '?', '1', '2', '3', '4', '5', '6',
-                         '7', '8', '9', '0', '-', '=',
-                         0xE1, // 'ß',
-                         '?', 'q', 'w', 'e', 'r', 't', 'z',
-                         'u', 'i', 'o', 'p', '[', ']', '?', '?', 'a', 's', 'd', 'f', 'g',
-                         'h', 'j', 'k', 'l', ';', '\'', '`', 0, '\\', 'y', 'x', 'c', 'v',
-                         'b', 'n', 'm', ',', '.', '/', '?', '?', '?', ' ', '?', '?', '?',
-                         '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?',
-                         '?', '?', '?', '?', '?', '?', '?', '?', '?', '?',
-                         '^', 'v', '<', '>'};
-
-const unsigned char sc_ascii5[] = {'?', '?', '!', '"',
-                         0x15, // '§',
-                         '$', '%', '&',
-                         '/', '(', ')', '=', '_', '*', '?', '?', 'Q', 'W', 'E', 'R', 'T', 'Z',
-                         'U', 'I', 'O', 'P', '[', ']', '?', '?', 'A', 'S', 'D', 'F', 'G',
-                         'H', 'J', 'K', 'L', ';', '\'', '`', 0, '\\', 'Y', 'X', 'C', 'V',
-                         'B', 'N', 'M', ',', '.', '/', '?', '?', '?', ' ', '?', '?', '?',
-                         '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?',
-                         '?', '?', '?', '?', '?', '?', '?', '?', '?', '?',
-                         '^', 'v', '<', '>'};
-
-
-
 void draw_status_bar() {
     set_color(FG_BLACK | BG_CYAN);
     for(unsigned char c=0; c<80; c++) {
@@ -108,29 +57,13 @@ void clear_text_buffer() {
 }
 
 
-int keycodes() {
-    while (1) {
-        while (!(read_keyboard_status() & 0x01)) {}
-        uint8_t scancode = read_keyboard_data();
-        printf("%s\n", sc_name3[scancode]);
-        if (scancode < 128) {
-            if (scancode == SC_ESC) {
-
-                return 0;
-            }
-        }
-    }
-    sleep(33);
-}
-
 int editor_main2() {
     while (1) {
         clear_screen();
         draw_status_bar();
         draw_text_buffer();
 
-        while (!(read_keyboard_status() & 0x01)) {}
-        uint8_t scancode = read_keyboard_data();
+        uint8_t scancode = getkey();
 
         // Überprüfe den Tastaturstatus
         if (scancode < 128) {
@@ -146,15 +79,8 @@ int editor_main2() {
                 delete_character();
             } else {
                 unsigned char letter;
-                if (is_key_pressed(SC_LEFT_SHIFT)) {
-                    if(scancode == SC_LEFT_SHIFT) continue;
-                    letter = sc_ascii5[(int)scancode];
-                    insert_character(letter);
-                } else {
-                    letter = sc_ascii4[(int)scancode];
-                    insert_character(letter);
-                }
-                
+                letter = char_from_key(scancode);
+                insert_character(letter);
             }
         }
     }
@@ -185,7 +111,7 @@ int hexviewer(uint32_t address) {
             case 1: run = 0; break;
             default: {
                 if(key < 97) {
-                unsigned char letter = sc_ascii4[(int)key];
+                unsigned char letter = char_from_key(key);
                 key = letter;
                 break;
                 }

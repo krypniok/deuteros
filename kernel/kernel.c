@@ -42,44 +42,6 @@ int kernel_console_program();
 
 
 
-const unsigned char *sc_name2[] = {"ERROR", "Esc", "1", "2", "3", "4", "5", "6",
-                         "7", "8", "9", "0", "-", "=", "Backspace", "Tab", "Q", "W", "E",
-                         "R", "T", "Z", "U", "I", "O", "P", "[", "]", "Enter", "Lctrl",
-                         "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "'", "`",
-                         "LShift", "\\", "Y", "X", "C", "V", "B", "N", "M", ",", ".",
-                         "/", "RShift", "Keypad *", "LAlt", "Spacebar", "CapsLock",
-                         "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10",
-                         "NumLock", "ScrollLock", "Keypad 7", "Keypad 8", "Keypad 9",
-                         "Keypad -", "Keypad 4", "Keypad 5", "Keypad 6", "Keypad +",
-                         "Keypad 1", "Keypad 2", "Keypad 3", "Keypad 0", "Keypad .",
-                         "AltSysReq", "???", "???", "F11", "F12",
-                         "UP_ARROW", "DOWN_ARROW", "LEFT_ARROW", "RIGHT_ARROW"};
-
-
-const unsigned char sc_ascii2[] = {'?', '?', '1', '2', '3', '4', '5', '6',
-                         '7', '8', '9', '0', '-', '=',
-                         0xE1, // 'ß',
-                         '?', 'q', 'w', 'e', 'r', 't', 'z',
-                         'u', 'i', 'o', 'p', '[', ']', '?', '?', 'a', 's', 'd', 'f', 'g',
-                         'h', 'j', 'k', 'l', ';', '\'', '`', 0, '\\', 'y', 'x', 'c', 'v',
-                         'b', 'n', 'm', ',', '.', '/', '?', '?', '?', ' ', '?', '?', '?',
-                         '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?',
-                         '?', '?', '?', '?', '?', '?', '?', '?', '?', '?',
-                         '^', 'v', '<', '>'};
-
-const unsigned char sc_ascii3[] = {'?', '?', '!', '"',
-                         0x15, // '§',
-                         '$', '%', '&',
-                         '/', '(', ')', '=', '_', '*', '?', '?', 'Q', 'W', 'E', 'R', 'T', 'Z',
-                         'U', 'I', 'O', 'P', '[', ']', '?', '?', 'A', 'S', 'D', 'F', 'G',
-                         'H', 'J', 'K', 'L', ';', '\'', '`', 0, '\\', 'Y', 'X', 'C', 'V',
-                         'B', 'N', 'M', ',', '.', '/', '?', '?', '?', ' ', '?', '?', '?',
-                         '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?',
-                         '?', '?', '?', '?', '?', '?', '?', '?', '?', '?',
-                         '^', 'v', '<', '>'};
-
-
-
 #include "../cpu/jmpbuf.h"
 jmp_buf kernel_env;
 
@@ -588,6 +550,20 @@ void cat(const char *addr) {
     printf("\n");
 }
 
+
+int keycodes() {
+    while (1) {
+        uint8_t scancode = getkey();
+        if (scancode < 128) {
+            printf("%s\n", keyData[scancode].name);
+            if (scancode == SC_ESC) {
+                return 0;
+            }
+        }
+    }
+    sleep(33);
+}
+
 void execute_command(char *input) {
     int cursor = get_cursor();
     if (strcmp(input, "") == 0) { goto none; }
@@ -656,40 +632,32 @@ void clear_cursor() {
     set_char_at_video_memory(' ', newCursor);
 }
 
+
 // Console program one
 int kernel_console_program() {
     while (1) {
-        // Überprüfe den Tastaturstatus
-        if (read_keyboard_status() & 0x01) {
-            // Tastatureingabe verfügbar, lese den Scan-Code
-            uint8_t scancode = read_keyboard_data();
+        uint8_t key = getkey();
+        uint8_t chr = char_from_key(key);
+        HandleKeypress(chr);
 
-            if (scancode > SC_MAX) return 1;
-
-            HandleKeypress(sc_ascii2[(int)scancode]);
-
-            if (scancode == BACKSPACE) {
+            if (key == BACKSPACE) {
                 if (backspace(key_buffer2)) {
                     print_backspace();
                 }
-            } else if (scancode == ENTER) {
+            } else if (key == ENTER) {
                 clear_cursor();
                 print_nl();
                 execute_command(key_buffer2);
                 key_buffer2[0] = '\0';
-            } else if (scancode == SC_F1) {
+            }
+            /* 
+            else if (scancode == SC_F1) {
                 ramdisk_test();
-            } else {
-                char letter;
-                if (is_key_pressed(SHIFT)) {
-                    letter = sc_ascii3[(int)scancode];
-                } else {
-                    letter = sc_ascii2[(int)scancode];
-                }
-                append(key_buffer2, letter);
-                char str[2] = {letter, '\0'};
+            } */
+            else {
+                append(key_buffer2, chr);
+                char str[2] = {chr, '\0'};
                 print_string(str);
             }
         }
-    }
 }
