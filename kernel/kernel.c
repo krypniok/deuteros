@@ -6,88 +6,66 @@
 #include "../drivers/ports.h"
 #include "../drivers/video.h"
 #include "../stdlibs/string.h"
+#include "../cpu/jmpbuf.h"
 
+#include "kernel.h"
 #include "util.h"
-#include "mem.h"
+#include "time.h"
 
+#define KERNEL_PROMPT_CHAR 0x10
 
+static char kernel_console_key_buffer[1024];
+jmp_buf kernel_env;
 
-
-#define SHIFT 0x2A
-#define RELEASED_SHIFT 0xAA
-
-#define BACKSPACE 0x0E
-#define ENTER 0x1C
-
-#define SC_MAX 128
-
-static char key_buffer2[256];
-
-bool g_bShiftPressed = false;
 bool g_bKernelShouldStop = false;
 bool g_bKernelInitialised = false;
 
+typedef void (*FunctionPointer)();
 
-// Funktion zum Lesen des Tastaturstatus
-uint8_t read_keyboard_status() {
-    return port_byte_in(0x64);
-}
-
-// Funktion zum Lesen des Tastaturdatenports
-uint8_t read_keyboard_data() {
-    return port_byte_in(0x60);
-}
+unsigned char kernel_version_string[80];
 
 int kernel_console_program();
+void loaddisk();
 
-
-
-#include "../cpu/jmpbuf.h"
-jmp_buf kernel_env;
-
-void start_kernel() {
+void kernel_main() {
     setjmp(&kernel_env);
     set_color(WHITE_ON_BLACK);
     clear_screen();
-    printf("start_kernel @ 0x%p\n", &start_kernel);
-    unsigned char str[80];
     int revnum = REVISION_NUMBER;
     unsigned char* revdate = REVISION_DATE;
-    sprintf(str, "DeuterOS 0.%d (%s)\n", (void*)&revnum, (void*)&revdate);
-    printf("DeuterOS 0.%d (", REVISION_NUMBER);
-    print_string(REVISION_DATE);
-    printf(")\n");
+    sprintf(kernel_version_string, "DeuterOS 0.%d (%s)\n", (void*)&revnum, (void*)&revdate);
+    printf("%s", kernel_version_string);
 
     if(! g_bKernelInitialised) {
-       // print_string("Installing interrupt service routines (ISRs).\n");
+        // print_string("Installing interrupt service routines (ISRs).\n");
         isr_install();
 
-      //  print_string("Enabling external interrupts.\n");
+        //  print_string("Enabling external interrupts.\n");
         asm volatile("sti");
 
-      //  print_string("Initializing keyboard (IRQ 1).\n");
+        //  print_string("Initializing keyboard (IRQ 1).\n");
         init_keyboard();
-
-      //  print_string("Initializing dynamic memory.\n");
-        init_dynamic_mem();
 
         init_memory();
 
-     //   print_string("A20 Line was activated by the MBR.\n");
-        // enable_a20_line();
+        //   print_string("A20 Line was activated by the MBR.\n");
+        //   enable_a20_line();
 
-     //   print_string("Initializing timer.\n");
+        //   print_string("Initializing timer.\n");
         init_timer(1000);
 
-     //   print_string("Initializing PS/2 mouse interface\n");;
-        //mouse_install();
+        //   print_string("Initializing PS/2 mouse interface\n");;
+        // mouse_install();
+
+        init_random();
 
         g_bKernelInitialised = true;
     }
 
+    kernel_console_key_buffer[0] = '\0';
    // printlogo();
-
-    printf("\n%c ", 0x10);
+    loaddisk();
+    printf("\n%c ", KERNEL_PROMPT_CHAR);
 
     while(!g_bKernelShouldStop) {
         kernel_console_program();
@@ -98,50 +76,6 @@ end_of_kernel:
     printf("Wow, we should get here...\nExiting...\nStopping the CPU...\nescape espace...\n");
     asm volatile("hlt");
     printf("P.S. Why is this still working when the CPU is officially stopped (hlt) ?\n");
-}
-
-typedef void (*FilePointer)();
-
-
-// Helper function to search for a byte within a memory range
-void* search_byte(void* start_address, size_t size, unsigned char byteToFind) {
-    for (size_t i = 0; i < size; i++) {
-        unsigned char byte = *((unsigned char*)(start_address + i));
-        if (byte == byteToFind) {
-            // Byte found, return the address
-            return (start_address + i);
-        }
-    }
-
-    // Byte not found in the given range
-    return NULL;
-}
-
-void execute_search_command_str(char *input) {
-    char* addressStr = strtok(input + strlen("searchs") + 1, " ");
-    char* sizeStr = strtok(NULL, " ");
-    char* searchString = strtok(NULL, " ");
-
-    if (addressStr != NULL && sizeStr != NULL && searchString != NULL) {
-        uint32_t address = strtoul(addressStr, NULL, 0);
-        uint32_t size = strtoul(sizeStr, NULL, 0);
-
-        // Call the search_string function to find the string
-        void* result = search_string((void*)address, size, searchString);
-
-        if (result != NULL) {
-            // String found, print the address
-            char resultAddressStr[20];
-            sprintf(resultAddressStr, "%p", &result);
-            print_string("String found at address: ");
-            print_string(resultAddressStr);
-            print_string("\n");
-        } else {
-            print_string("String not found.\n");
-        }
-    } else {
-        print_string("Invalid parameters for 'search address size string' command.\n");
-    }
 }
 
 void searchb(uint32_t address, uint32_t size, uint32_t byte) {
@@ -158,229 +92,23 @@ void searchb(uint32_t address, uint32_t size, uint32_t byte) {
         }
 }
 
-
-void printascii() {
-    int rows = 16;
-    int columns = 16;
-    printf("%c", 0xC9);
-    printf("%c", 0xCD);
-    printf("%c", 0xCD);
-    printf("%c", 0xCD);
-    printf("%c", 0xCD);
-    printf("%c", 0xD1);
-
-    for (int col = 0; col < columns<<2; col++) {
-        printf("%c", 0xCD);
-    }
-    printf("%c\n", 0xBB);
-
-    printf("%c", 0xBA);
-    printf("    ");
-    printf("%c", 0xB3);
-    
-    for (int col = 0; col < columns; col++) {
-        printf(" ");
-        printHexByte(col);
-    }
-    printf("%c\n", 0xBA);
-
-    printf("%c", 0xC7);
-    printf("%c", 0xC4);
-    printf("%c", 0xC4);
-    printf("%c", 0xC4);
-    printf("%c", 0xC4);
-    printf("%c", 0xC5);
-
-    for (int col = 0; col < columns<<2; col++) {
-        printf("%c", 0xC4);
-    }
-    printf("%c\n", 0xB6);
-
-    for (int row = 0; row < rows; row++) {
-        printf("%c ", 0xBA);
-        printHexByte(row<<4);
-        printf("%c", 0xB3);
-
-        for (int col = 0; col < columns; col++) {
-            unsigned char c = row * columns + col;
-            if (c == 0 || c == 10) // Skip the newline character '\n'
-                printf("    ");
-            else
-                printf("  %c ", c);
+void searchs(uint32_t address, uint32_t size, unsigned char* string) {
+        printf("Searching %s\n", &string);
+        void* result = search_string((void*)address, size, string);
+        if (result != NULL) {
+            char resultAddressStr[20];
+            sprintf(resultAddressStr, "%p", &result);
+            print_string("String found at address: ");
+            print_string(resultAddressStr);
+            print_string("\n");
+        } else {
+            print_string("String not found.\n");
         }
-        printf("%c\n", 0xBA);
-    }
-
-    printf("%c", 0xC8);
-    printf("%c", 0xCD);
-    printf("%c", 0xCD);
-    printf("%c", 0xCD);
-    printf("%c", 0xCD);
-    printf("%c", 0xCF);
-
-    for (int col = 0; col < columns<<2; col++) {
-        printf("%c", 0xCD);
-    }
-    printf("%c\n", 0xBC);
 }
-
-void formatTimestamp(unsigned int timestamp_ms) {
-    unsigned int ms_per_day = 86400000; // Millisekunden pro Tag
-    unsigned int ms_per_hour = 3600000; // Millisekunden pro Stunde
-    unsigned int ms_per_minute = 60000; // Millisekunden pro Minute
-    unsigned int ms_per_second = 1000;  // Millisekunden pro Sekunde
-
-    unsigned int days = timestamp_ms / ms_per_day;
-    timestamp_ms %= ms_per_day;
-
-    unsigned int hours = timestamp_ms / ms_per_hour;
-    timestamp_ms %= ms_per_hour;
-
-    unsigned int minutes = timestamp_ms / ms_per_minute;
-    timestamp_ms %= ms_per_minute;
-
-    unsigned int seconds = timestamp_ms / ms_per_second;
-    unsigned int milliseconds = timestamp_ms % ms_per_second;
-
-    // Ausgabe der Längenzeit
-    printf("%d Tage\n", days);
-    printf("%d Stunden\n", hours);
-    printf("%d Minuten\n", minutes);
-    printf("%d Sekunden\n", seconds);
-    printf("%d Millisekunden\n", milliseconds);
-}
-
-unsigned char strUptime[80];
-void formatTimestampHHMMSS(unsigned int timestamp_ms) {
-    unsigned int ms_per_day = 86400000; // Millisekunden pro Tag
-    unsigned int ms_per_hour = 3600000; // Millisekunden pro Stunde
-    unsigned int ms_per_minute = 60000; // Millisekunden pro Minute
-    unsigned int ms_per_second = 1000;  // Millisekunden pro Sekunde
-
-    unsigned int days = timestamp_ms / ms_per_day;
-    timestamp_ms %= ms_per_day;
-
-    unsigned int hours = timestamp_ms / ms_per_hour;
-    timestamp_ms %= ms_per_hour;
-
-    unsigned int minutes = timestamp_ms / ms_per_minute;
-    timestamp_ms %= ms_per_minute;
-
-    unsigned int seconds = timestamp_ms / ms_per_second;
-    unsigned int milliseconds = timestamp_ms % ms_per_second;
-
-    int revnum = REVISION_NUMBER;
-    unsigned char* revdate = REVISION_DATE;
-    sprintf(strUptime, "%d:%d:%d\n", &hours, &minutes, &seconds);
-
-    print_string(strUptime);
-}
-
-// Funktion zum Verstecken des Cursors
-void hidecursor() {
-    // Index 0x0A entspricht dem Cursor-Form Control Register
-    port_byte_out(0x3D4, 0x0A);
-    unsigned char cursorControl = port_byte_in(0x3D5);
-
-    // Bit 5 auf 1 setzen, um den Cursor zu verstecken
-    cursorControl |= 0x20;
-
-    // Neuen Wert an das CRTC Data Register senden
-    port_byte_out(0x3D5, cursorControl);
-}
-
-// Funktion zum Anzeigen des Cursors
-void showcursor() {
-    // Index 0x0A entspricht dem Cursor-Form Control Register
-    port_byte_out(0x3D4, 0x0A);
-    unsigned char cursorControl = port_byte_in(0x3D5);
-
-    // Bit 5 auf 0 setzen, um den Cursor anzuzeigen
-    cursorControl &= 0xDF;
-
-    // Neuen Wert an das CRTC Data Register senden
-    port_byte_out(0x3D5, cursorControl);
-}
-
-
-int memtest() {
-    void* mem = (void*)malloc(256);
-    void* mem2 = (void*)malloc(128);
-    printf("Allocated blocks:\n");
-    list_allocated_blocks();
-    free(mem);
-    printf("\nAllocated blocks after freeing mem:\n");
-    list_allocated_blocks();
-    free(mem2);
-    printf("\nAllocated blocks after freeing mem2:\n");
-    list_allocated_blocks();
-    return 0;
-}
-
-
-
-
-// Makro, um eine Funktion nach Namen aufzurufen (ohne Parameter)
-#define CALL_FUNCTION(funcName) \
-    else if (strcmp(input, #funcName) == 0) { \
-        funcName(); \
-    }
-
-// Makro, um eine Funktion nach Namen aufzurufen (mit einem Parameter)
-#define CALL_FUNCTION_WITH_STR(funcName) \
-    else if (strstr(input, #funcName) == input) { \
-        char* str1 = strtok(input + strlen(#funcName) + 1, " "); \
-        if (str1 != NULL) { \
-            funcName(str1); \
-        } else { printf("Invalid parameters for %s\n", #funcName); } \
-    }
-
-// Makro, um eine Funktion nach Namen aufzurufen (mit einem Parameter)
-#define CALL_FUNCTION_WITH_ARG(funcName) \
-    else if (strstr(input, #funcName) == input) { \
-        char* str1 = strtok(input + strlen(#funcName) + 1, " "); \
-        if (str1 != NULL) { \
-            uint32_t param1 = (uint32_t)strtoul(str1, NULL, 0); \
-            funcName((void*)param1); \
-        } else { printf("Invalid parameters for %s\n", #funcName); } \
-    }
-
-// Makro, um eine Funktion nach Namen aufzurufen (mit drei Parametern)
-#define CALL_FUNCTION_WITH_2ARGS(funcName) \
-    else if (strstr(input, #funcName) == input) { \
-        char* str1 = strtok(input + strlen(#funcName) + 1, " "); \
-        char* str2 = strtok(NULL, " "); \
-        if (str1 != NULL && str2 != NULL) { \
-            uint32_t param1 = (uint32_t)strtoul(str1, NULL, 0); \
-            uint32_t param2 = (uint32_t)strtoul(str2, NULL, 0); \
-            funcName((void*)param1, param2); \
-        } else { printf("Invalid parameters for %s\n", #funcName); } \
-    }
-
-
-// Makro, um eine Funktion nach Namen aufzurufen (mit drei Parametern)
-#define CALL_FUNCTION_WITH_3ARGS(funcName) \
-    else if (strstr(input, #funcName) == input) { \
-        char* str1 = strtok(input + strlen(#funcName) + 1, " "); \
-        char* str2 = strtok(NULL, " "); \
-        char* str3 = strtok(NULL, " "); \
-        if (str1 != NULL && str2 != NULL && str3 != NULL) { \
-            uint32_t param1 = (uint32_t)strtoul(str1, NULL, 0); \
-            uint32_t param2 = (uint32_t)strtoul(str2, NULL, 0); \
-            uint32_t param3 = (uint32_t)strtoul(str3, NULL, 0); \
-            funcName(param1, param2, param3); \
-        } else { printf("Invalid parameters for %s\n", #funcName); } \
-    }
-
-void random() {
-    //init_random();
-    for (int i = 0; i < 10; i++) {
-        printf("%d\n", rand_range(1, 100)); // Beispiel: Zahlen zwischen 1 und 100
-    }
-}  
 
 void uptime() {
-    formatTimestampHHMMSS(GetTicks());
+    fmt_timespan(GetTicks(), &g_strUptime);
+    printf("%s", g_strUptime);
 }
 
 void exit() {
@@ -388,74 +116,15 @@ void exit() {
 }
 
 void run(void* address) {
-    FilePointer funcPtr = (FilePointer)address;
+    FunctionPointer funcPtr = (FunctionPointer)address;
     funcPtr();
 }
 
-void* search_signature(void* start_address, size_t size, uint32_t signature) {
-    for (size_t i = 0; i < size - sizeof(uint32_t) + 1; i++) {
-        uint32_t value = *((uint32_t*)(start_address + i));
-        if (value == signature) {
-            // Signature found, return the address
-            return (start_address + i);
-        }
+void random() {
+    for (int i = 0; i < 10; i++) {
+        printf("%d\n", rand_range(1, 100)); // Beispiel: Zahlen zwischen 1 und 100
     }
-
-    // Signature not found in the given range
-    return NULL;
-}
-
-
-void printframe(int x, int y, int w, int h, unsigned char color) {
-    unsigned int old_color = get_color();
-    set_color(color);
-    set_cursor_xy(x, y);
-    printf("%c", 0xC9); // ecke links oben
-    for (int col = 0; col < w; col++) { printf("%c", 0xCD); } // balken oben
-    printf("%c\n", 0xBB); // ecke rechts oben
-    y++;
-    for(int row=0; row<h; row++) {
-        set_cursor_xy(x, y);
-        printf("%c", 0xBA); // balken links
-        for (int col = 0; col < w; col++) { printf("%c", ' '); } // leerzeichen
-        printf("%c\n", 0xBA); // balken rechts
-        y++;
-    }
-    set_cursor_xy(x, y);
-    printf("%c", 0xC8); // ecke links unten
-    for (int col = 0; col < w; col++) { printf("%c", 0xCD); } // balken unten
-    printf("%c\n", 0xBC); // ecke rechts unten
-    set_color(old_color);
-}
-
-void printframe_caption(int x, int y, int w, int h, unsigned char color, unsigned char* caption) {
-    unsigned int old_color = get_color();
-    unsigned char len = strlen(caption);
-    unsigned char offset = (w - len) / 2;
-
-    set_color(color);
-    set_cursor_xy(x, y);
-    printf("%c", 0xC9); // ecke links oben
- 
-    for (int col = 0; col < (w-offset-len/2)-5; col++) { printf("%c", 0xCD); } // balken oben
-    printf("%s", caption); // balken oben
-    for (int col = 0; col < (w-offset-len/2)-5; col++) { printf("%c", 0xCD); } // balken oben
-
-    printf("%c\n", 0xBB); // ecke rechts oben
-    y++;
-    for(int row=0; row<h-2; row++) {
-        set_cursor_xy(x, y);
-        printf("%c", 0xBA); // balken links
-        for (int col = 0; col < w; col++) { printf("%c", ' '); } // leerzeichen
-        printf("%c\n", 0xBA); // balken rechts
-        y++;
-    }
-    set_cursor_xy(x, y);
-    printf("%c", 0xC8); // ecke links unten
-    for (int col = 0; col < w; col++) { printf("%c", 0xCD); } // balken unten
-    printf("%c\n", 0xBC); // ecke rechts unten
-    set_color(old_color);
-}
+}  
 
 void pf() {
     printframe_caption(30, 7, 20, 10, FG_WHITE | BG_LIGHT_BLUE, " Question ");
@@ -464,17 +133,6 @@ void pf() {
 
 void dtmf() {
     playDTMF("*31#0461#");    
-}
-
-
-void sub_timer_snaketext_callback();
-int id=0;
-void snt() {
-   id = add_sub_timer(50, sub_timer_snaketext_callback);
-}
-void sne() {
-    playDTMF("*31#0461#");
-    remove_sub_timer(id);
 }
 
 void process_input(const char *input) {
@@ -529,14 +187,10 @@ int restart() {
     return 0;
 }
 
-#define BYTE 1
-#define WORD 2
-#define DWORD 4
-#define KILOBYTE 1024
-#define MEGABYTE 1048576
-#define GIGABYTE 1073741824
+
 
 void loaddisk() {
+    printf("Loading disk... to 0x100000\n");
     for(unsigned int i=0; i<2880; i++) {
         read_from_disk(i, (void*)0x100000+(512*i), 512);
     }
@@ -568,18 +222,15 @@ void execute_command(char *input) {
     int cursor = get_cursor();
     if (strcmp(input, "") == 0) { goto none; }
 
-    CALL_FUNCTION_WITH_ARG(cat)
     CALL_FUNCTION(memtest)
     CALL_FUNCTION(killtimer)
     CALL_FUNCTION(bell)
-    CALL_FUNCTION(snt)
-    CALL_FUNCTION(sne)
+    CALL_FUNCTION(snaketext)
     CALL_FUNCTION(ramdisk_test)
     CALL_FUNCTION(tinysql)
-    CALL_FUNCTION(pip)
+    CALL_FUNCTION(tinysql2)
     CALL_FUNCTION(restart)
     CALL_FUNCTION(main_c)
-    CALL_FUNCTION_WITH_2ARGS(beep)
     CALL_FUNCTION(dtmf)
     CALL_FUNCTION(editor_main)
     CALL_FUNCTION(editor_main2)
@@ -596,18 +247,18 @@ void execute_command(char *input) {
     CALL_FUNCTION(exit)
     CALL_FUNCTION(loaddisk)
     CALL_FUNCTION(pf)
-    CALL_FUNCTION_WITH_2ARGS(hexdump)
-    CALL_FUNCTION_WITH_ARG(hexviewer)
-    CALL_FUNCTION_WITH_3ARGS(memcpy)
-    CALL_FUNCTION_WITH_2ARGS(memset)
-    CALL_FUNCTION_WITH_ARG(run)
     CALL_FUNCTION(printascii)
+    CALL_FUNCTION_WITH_ARG(cat)
+    CALL_FUNCTION_WITH_ARG(hexviewer)
+    CALL_FUNCTION_WITH_ARG(run)
+    CALL_FUNCTION_WITH_2ARGS(beep)
+    CALL_FUNCTION_WITH_2ARGS(hexdump)
+    CALL_FUNCTION_WITH_2ARGS(memset)
+    CALL_FUNCTION_WITH_3ARGS(memcpy)
     CALL_FUNCTION_WITH_3ARGS(searchb)
+    CALL_FUNCTION_WITH_STR(printf)
+    CALL_FUNCTION_WITH_2ARGS_AND_STR(searchs)
 
-    else if (strstr(input, "searchs") == input)
-    {
-        execute_search_command_str(input);
-    }
     else if (strcmp(input, "clr") == 0 || strcmp(input, "rst") == 0)
     {
         clear_screen();
@@ -619,19 +270,12 @@ void execute_command(char *input) {
         print_string(input);
         print_nl();
     }
-    // print_string("> ");
-    printf("%c ", 0x10);
+    printf("%c ", KERNEL_PROMPT_CHAR);
     return;
 none:
     set_cursor(cursor - 156);
     return;
 }
-
-void clear_cursor() {
-    int newCursor = get_cursor();
-    set_char_at_video_memory(' ', newCursor);
-}
-
 
 // Console program one
 int kernel_console_program() {
@@ -640,22 +284,22 @@ int kernel_console_program() {
         uint8_t chr = char_from_key(key);
         HandleKeypress(chr);
 
-            if (key == BACKSPACE) {
-                if (backspace(key_buffer2)) {
+            if (key == SC_BACKSPACE) {
+                if (backspace(kernel_console_key_buffer)) {
                     print_backspace();
                 }
-            } else if (key == ENTER) {
+            } else if (key == SC_ENTER) {
                 clear_cursor();
                 print_nl();
-                execute_command(key_buffer2);
-                key_buffer2[0] = '\0';
-            }
-            /* 
-            else if (scancode == SC_F1) {
+                execute_command(kernel_console_key_buffer);
+                kernel_console_key_buffer[0] = '\0';
+            } 
+            else if (key == SC_F1) {
+                print_nl();
                 ramdisk_test();
-            } */
+            }
             else {
-                append(key_buffer2, chr);
+                append(kernel_console_key_buffer, chr);
                 char str[2] = {chr, '\0'};
                 print_string(str);
             }

@@ -110,6 +110,12 @@ struct KeyData {
     int scancode;  // New field for scancode
 };
 
+
+// Funktion zum Lesen des Tastaturstatus
+uint8_t read_keyboard_status();
+// Funktion zum Lesen des Tastaturdatenports
+uint8_t read_keyboard_data();
+
 // Define an array of key data
 extern struct KeyData keyData[];
 

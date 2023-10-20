@@ -72,3 +72,15 @@ void sub_timer_snaketext_callback() {
     // Aktualisiere die Position von Text 2
     nextposition2();
 }
+
+int snkaketext_threadid=0, snaketext_running=0;
+void snaketext() {
+   if(snaketext_running) {
+      playDTMF("*31#0461#");
+      remove_sub_timer(snkaketext_threadid);
+      snaketext_running=0;
+   } else {
+      snkaketext_threadid = add_sub_timer(50, sub_timer_snaketext_callback);
+      snaketext_running=1;
+   }
+}

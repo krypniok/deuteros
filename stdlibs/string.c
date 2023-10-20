@@ -173,6 +173,21 @@ char* strtok(char* str, const char* delim) {
     return token;
 }
 
+// Helper function to search for a byte within a memory range
+void* search_byte(void* start_address, size_t size, unsigned char byteToFind) {
+    for (size_t i = 0; i < size; i++) {
+        unsigned char byte = *((unsigned char*)(start_address + i));
+        if (byte == byteToFind) {
+            // Byte found, return the address
+            return (start_address + i);
+        }
+    }
+
+    // Byte not found in the given range
+    return NULL;
+}
+
+// Helper function to search for a string within a memory range
 void* search_string(void* start_address, size_t size, const char* str) {
     size_t str_len = strlen(str);
 

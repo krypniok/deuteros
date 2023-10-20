@@ -13,5 +13,13 @@ void init_memory();
 void* malloc(size_t size);
 void free(void* ptr);
 
+#define calloc(n, size) ({ \
+    void *ptr = malloc((n) * (size)); \
+    if (ptr) { \
+        memset(ptr, 0, (n) * (size)); \
+    } \
+    ptr; \
+})
+
 #endif
 

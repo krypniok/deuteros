@@ -1,5 +1,8 @@
 #include "memory.h"
 
+// Der flache Speicherbereich, in dem wir unsere Allokationen vornehmen werden.
+char memory[MEMORY_SIZE];
+
 void memcpy(void* dest, const void* src, size_t numBytes) {
     char* destPtr = (char*)dest;
     const char* srcPtr = (const char*)src;
@@ -34,9 +37,6 @@ int memcmp(const void* ptr1, const void* ptr2, size_t numBytes) {
 
     return 0;
 }
-
-// Der flache Speicherbereich, in dem wir unsere Allokationen vornehmen werden.
-char memory[MEMORY_SIZE];
 
 // Struktur zur Verwaltung von Speicherblöcken
 typedef struct Block {
@@ -157,4 +157,18 @@ void list_allocated_blocks() {
         printf("Size: %d\n", curr->size);
         curr = curr->next;
     }
+}
+
+int memtest() {
+    void* mem = (void*)malloc(256);
+    void* mem2 = (void*)malloc(128);
+    printf("Allocated blocks:\n");
+    list_allocated_blocks();
+    free(mem);
+    printf("\nAllocated blocks after freeing mem:\n");
+    list_allocated_blocks();
+    free(mem2);
+    printf("\nAllocated blocks after freeing mem2:\n");
+    list_allocated_blocks();
+    return 0;
 }

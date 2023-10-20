@@ -3,7 +3,6 @@
 // Definition von Pi (π)
 #define PI 3.14159265358979323846
 
-
 // Funktion zur Berechnung des Sinuswertes (ohne externe Bibliotheken)
 double sin(double x) {
     // Konstanten für die Taylor-Reihe
@@ -19,6 +18,20 @@ double sin(double x) {
     }
 
     return result;
+}
+
+// Funktion zur Berechnung des Cosinuswertes (ohne externe Bibliotheken)
+double cos(double x) {
+    // Cosinus kann mithilfe des Sinus berechnet werden
+    // cos(x) = sin(π/2 - x)
+    return sin(PI / 2 - x);
+}
+
+// Funktion zur Berechnung des Tangenswertes (ohne externe Bibliotheken)
+double tan(double x) {
+    // Tangens kann mithilfe von Sinus und Cosinus berechnet werden
+    // tan(x) = sin(x) / cos(x)
+    return sin(x) / cos(x);
 }
 
 // Hilfsfunktion zur Berechnung der Fakultät

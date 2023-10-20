@@ -2,8 +2,6 @@
 #include "../drivers/keyboard.h"
 #include "../stdlibs/string.h"
 #include "../kernel/util.h"
-#include "../kernel/mem.h"
-
 
 // Parameter für den Generator
 unsigned int seed = 1234;

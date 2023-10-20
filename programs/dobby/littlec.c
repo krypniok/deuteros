@@ -132,7 +132,7 @@ int main_c()
 
   /* set program pointer to start of program buffer */
 //  prog = "main() { puts(\"Little C Demo Program.\n\"); }"; //&program[0]; //p_buf;
-  prog = 0x200000; //&program[0];
+  prog = (char*)0x200000; //&program[0];
 
   prescan(); /* find the location of all functions
                 and global variables in the program */

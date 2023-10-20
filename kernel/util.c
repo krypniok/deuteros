@@ -120,12 +120,67 @@ void print_registers() {
     return;
 }
 
-void pip() {
-    void* eip_val;
-    asm volatile(
-        "call 1f \n"
-        "1: pop %[eip_val] \n"
-        : [eip_val] "=g" (eip_val)
-    );
-    printf("  EIP: %p\n", eip_val);
+void printascii() {
+    int rows = 16;
+    int columns = 16;
+    printf("%c", 0xC9);
+    printf("%c", 0xCD);
+    printf("%c", 0xCD);
+    printf("%c", 0xCD);
+    printf("%c", 0xCD);
+    printf("%c", 0xD1);
+
+    for (int col = 0; col < columns<<2; col++) {
+        printf("%c", 0xCD);
+    }
+    printf("%c\n", 0xBB);
+
+    printf("%c", 0xBA);
+    printf("    ");
+    printf("%c", 0xB3);
+    
+    for (int col = 0; col < columns; col++) {
+        printf(" ");
+        printHexByte(col);
+    }
+    printf("%c\n", 0xBA);
+
+    printf("%c", 0xC7);
+    printf("%c", 0xC4);
+    printf("%c", 0xC4);
+    printf("%c", 0xC4);
+    printf("%c", 0xC4);
+    printf("%c", 0xC5);
+
+    for (int col = 0; col < columns<<2; col++) {
+        printf("%c", 0xC4);
+    }
+    printf("%c\n", 0xB6);
+
+    for (int row = 0; row < rows; row++) {
+        printf("%c ", 0xBA);
+        printHexByte(row<<4);
+        printf("%c", 0xB3);
+
+        for (int col = 0; col < columns; col++) {
+            unsigned char c = row * columns + col;
+            if (c == 0 || c == 10) // Skip the newline character '\n'
+                printf("    ");
+            else
+                printf("  %c ", c);
+        }
+        printf("%c\n", 0xBA);
+    }
+
+    printf("%c", 0xC8);
+    printf("%c", 0xCD);
+    printf("%c", 0xCD);
+    printf("%c", 0xCD);
+    printf("%c", 0xCD);
+    printf("%c", 0xCF);
+
+    for (int col = 0; col < columns<<2; col++) {
+        printf("%c", 0xCD);
+    }
+    printf("%c\n", 0xBC);
 }

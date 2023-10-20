@@ -4,7 +4,6 @@
 #include <stddef.h>
 #include <stdarg.h>
 
-#include "../kernel/mem.h"
 #include "../kernel/util.h"
 
 unsigned char g_ConsoleColor = WHITE_ON_BLACK;
@@ -38,9 +37,9 @@ int setpal() {
 
     for(int i = 0; i < 16; i++) {
         port_byte_out(0x03C8, 7); // Indexregister setzen
-        port_byte_out(0x03C9, 0); // Rotwert
+        port_byte_out(0x03C9, i*16); // Rotwert
         port_byte_out(0x03C9, 0); // Grünwert
-        port_byte_out(0x03C9, i * 16); // Blauwert (graduell anpassen)
+        port_byte_out(0x03C9, i*16); // Blauwert (graduell anpassen)
         sleep(1000);
     }
 
@@ -48,7 +47,8 @@ int setpal() {
 }
 
 void set_color(unsigned char c) { g_ConsoleColor = c; }
-unsigned char get_color(unsigned char c) { return g_ConsoleColor; }
+//unsigned char get_color(unsigned char c) { return g_ConsoleColor; }
+unsigned char get_color() { return g_ConsoleColor; }
 
 void set_cursor_char(unsigned char c) { g_CursorChar = c; }
 unsigned char get_cursor_char() { return g_CursorChar; }
@@ -72,6 +72,32 @@ int get_cursor() {
     return offset * 2;
 }
 
+// Funktion zum Verstecken des Cursors
+void hidecursor() {
+    // Index 0x0A entspricht dem Cursor-Form Control Register
+    port_byte_out(0x3D4, 0x0A);
+    unsigned char cursorControl = port_byte_in(0x3D5);
+
+    // Bit 5 auf 1 setzen, um den Cursor zu verstecken
+    cursorControl |= 0x20;
+
+    // Neuen Wert an das CRTC Data Register senden
+    port_byte_out(0x3D5, cursorControl);
+}
+
+// Funktion zum Anzeigen des Cursors
+void showcursor() {
+    // Index 0x0A entspricht dem Cursor-Form Control Register
+    port_byte_out(0x3D4, 0x0A);
+    unsigned char cursorControl = port_byte_in(0x3D5);
+
+    // Bit 5 auf 0 setzen, um den Cursor anzuzeigen
+    cursorControl &= 0xDF;
+
+    // Neuen Wert an das CRTC Data Register senden
+    port_byte_out(0x3D5, cursorControl);
+}
+
 int get_offset(int col, int row) {
     return 2 * (row * MAX_COLS + col);
 }
@@ -92,7 +118,7 @@ void set_char_at_video_memory(char character, int offset) {
 
 
 int scroll_ln(int offset) {
-    memory_copy(
+    memcpy(
             (uint8_t * )(get_offset(0, 1) + VIDEO_ADDRESS),
             (uint8_t * )(get_offset(0, 0) + VIDEO_ADDRESS),
             MAX_COLS * (MAX_ROWS - 1) * 2
@@ -163,6 +189,11 @@ void clear_screen() {
     set_cursor(get_offset(0, 0));
 }
 
+void clear_cursor() {
+    int newCursor = get_cursor();
+    set_char_at_video_memory(' ', newCursor);
+}
+
 void print_backspace() {
     int newCursor = get_cursor() - 2;
     set_char_at_video_memory(' ', newCursor);
@@ -199,8 +230,6 @@ void printString(unsigned char *str)
         sp++;
     }
 }
-
-
 
 // Helper function to convert an integer to a string
 void intToString(int value, char *buffer)
@@ -552,3 +581,53 @@ void hexdump(void *ptr, size_t size)
     }
 }
 
+void printframe(int x, int y, int w, int h, unsigned char color) {
+    unsigned int old_color = get_color();
+    set_color(color);
+    set_cursor_xy(x, y);
+    printf("%c", 0xC9); // ecke links oben
+    for (int col = 0; col < w; col++) { printf("%c", 0xCD); } // balken oben
+    printf("%c\n", 0xBB); // ecke rechts oben
+    y++;
+    for(int row=0; row<h; row++) {
+        set_cursor_xy(x, y);
+        printf("%c", 0xBA); // balken links
+        for (int col = 0; col < w; col++) { printf("%c", ' '); } // leerzeichen
+        printf("%c\n", 0xBA); // balken rechts
+        y++;
+    }
+    set_cursor_xy(x, y);
+    printf("%c", 0xC8); // ecke links unten
+    for (int col = 0; col < w; col++) { printf("%c", 0xCD); } // balken unten
+    printf("%c\n", 0xBC); // ecke rechts unten
+    set_color(old_color);
+}
+
+void printframe_caption(int x, int y, int w, int h, unsigned char color, unsigned char* caption) {
+    unsigned int old_color = get_color();
+    unsigned char len = strlen(caption);
+    unsigned char offset = (w - len) / 2;
+
+    set_color(color);
+    set_cursor_xy(x, y);
+    printf("%c", 0xC9); // ecke links oben
+ 
+    for (int col = 0; col < (w-offset-len/2)-5; col++) { printf("%c", 0xCD); } // balken oben
+    printf("%s", caption); // balken oben
+    for (int col = 0; col < (w-offset-len/2)-5; col++) { printf("%c", 0xCD); } // balken oben
+
+    printf("%c\n", 0xBB); // ecke rechts oben
+    y++;
+    for(int row=0; row<h-2; row++) {
+        set_cursor_xy(x, y);
+        printf("%c", 0xBA); // balken links
+        for (int col = 0; col < w; col++) { printf("%c", ' '); } // leerzeichen
+        printf("%c\n", 0xBA); // balken rechts
+        y++;
+    }
+    set_cursor_xy(x, y);
+    printf("%c", 0xC8); // ecke links unten
+    for (int col = 0; col < w; col++) { printf("%c", 0xCD); } // balken unten
+    printf("%c\n", 0xBC); // ecke rechts unten
+    set_color(old_color);
+}

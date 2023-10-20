@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "keyboard.h"
 #include "ports.h"
@@ -9,12 +10,6 @@
 
 #include "hidden_cmd.h"
 
-
-#define BACKSPACE 0x0E
-#define ENTER 0x1C
-
-#define SC_MAX 57
-
 #define KEY_STATUS_MAX 128
 
 static bool key_status[KEY_STATUS_MAX];
@@ -24,7 +19,7 @@ static bool extended_scancode = false;
 struct KeyData keyData[] = {
     {"ERROR", 0, 0, 0, SC_ERROR},
     {"Esc\0", 0, 0, 0, SC_ESC},
-    {"KEY_1\0", '1', '!', '!', SC_KEY_1},
+    {"KEY_1\0", '1', '!', 0xAD, SC_KEY_1},
     {"2", '2', '"', 0xFD, SC_KEY_2},
     {"3", '3', 0x15, 0xFC, SC_KEY_3},
     {"4", '4', '$', 0xAC, SC_KEY_4},
@@ -35,11 +30,11 @@ struct KeyData keyData[] = {
     {"9", '9', ')', ']', SC_KEY_9},
     {"0", '0', '=', '}', SC_KEY_0},
     {"Eszett", 0xE1, '?', '\\', SC_MINUS},
-    {"EQUALS", 0x27, '`', 0, SC_EQUALS},
+    {"EQUALS", 0x27, '`', 0xA8, SC_EQUALS},
     {"Backspace", '\b', 0, 0, SC_BACKSPACE},
     {"Tab", 0, 0, 0, SC_TAB},
     {"KEY_Q", 'q', 'Q', 0x40, SC_KEY_Q},
-    {"W", 'w', 'W', 'W', SC_KEY_W},
+    {"W", 'w', 'W', 0xFB, SC_KEY_W},
     {"E", 'e', 'E', 0xEE, SC_KEY_E},
     {"R", 'r', 'R', 'p', SC_KEY_R},
     {"T", 't', 'T', 0xE9, SC_KEY_T},
@@ -56,7 +51,7 @@ struct KeyData keyData[] = {
     {"S", 's', 'S', 0xE4, SC_KEY_S},
     {"D", 'd', 'D', 0xEB, SC_KEY_D},
     {"F", 'f', 'F', 0x9F, SC_KEY_F},
-    {"G", 'g', 'G', 'G', SC_KEY_G},
+    {"G", 'g', 'G', 0xEC, SC_KEY_G},
     {"H", 'h', 'H', 0xEF, SC_KEY_H},
     {"J", 'j', 'J', 'J', SC_KEY_J},
     {"K", 'k', 'K', 'K', SC_KEY_K},
@@ -122,6 +117,17 @@ struct KeyData keyData[] = {
     {"INSERT", 0, 0, 0, SC_INSERT},
     {"DELETE", 0, 0, 0, SC_DELETE},
 };
+
+
+// Funktion zum Lesen des Tastaturstatus
+uint8_t read_keyboard_status() {
+    return port_byte_in(0x64);
+}
+
+// Funktion zum Lesen des Tastaturdatenports
+uint8_t read_keyboard_data() {
+    return port_byte_in(0x60);
+}
 
 static void keyboard_callback(registers_t *regs) {
     uint8_t scancode = port_byte_in(0x60);

@@ -17,7 +17,8 @@ size_t strlen(const char* str);
 int atoi(const char *str);
 unsigned long strtoul(const char* str, char** endptr, int base);
 
-void* search_string(void* start_address, size_t size, const char* str); // #ERROR_TAG conformity
+void* search_byte(void* start_address, size_t size, unsigned char byteToFind);
+void* search_string(void* start_address, size_t size, const char* str);
 
 char tolower(char c);
 bool isalnum(char c);

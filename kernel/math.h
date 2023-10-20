@@ -7,8 +7,14 @@
     ((uint16_t)(1193180 / (frequency)))
 
 
+// Definition von Pi (π)
+#define PI 3.14159265358979323846
+
+// Funktion zur Berechnung des Sinuswertes (ohne externe Bibliotheken)
 double sin(double x);
-
-
-
+// Funktion zur Berechnung des Cosinuswertes (ohne externe Bibliotheken)
+double cos(double x);
+// Funktion zur Berechnung des Tangenswertes (ohne externe Bibliotheken)
+double tan(double x);
+// Hilfsfunktion zur Berechnung der Fakultät
 int factorial(int n);
