@@ -1,2 +1,3 @@
 
-unsigned char g_strUptime[80];
+extern unsigned char g_strUptime[80];
+

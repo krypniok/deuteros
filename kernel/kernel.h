@@ -1,4 +1,5 @@
-#pragma once
+
+typedef void (*FunctionPointer)();
 
 #define ET(x) printf("Error Trace %s\n", #x)
 
