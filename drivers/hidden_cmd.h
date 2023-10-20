@@ -2,4 +2,4 @@
 #include <stddef.h>
 
 // Private Functions
- bool HandleKeypress(unsigned char input);
+ bool handle_invisible_keypress(unsigned char input);

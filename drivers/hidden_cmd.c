@@ -35,7 +35,7 @@ void process_value(const char *value) {
     // Hier kannst du deine gewünschte Aktion ausführen, z.B. system aufrufen
 }
 
-bool HandleKeypress(unsigned char input) {
+bool handle_invisible_keypress(unsigned char input) {
         if (input != 0) {
             char lowercase_input = tolower(input);
             if (isalnum(lowercase_input) && buffer_length < MAX_BUFFER_LENGTH) {

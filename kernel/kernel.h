@@ -2,6 +2,13 @@
 
 #define ET(x) printf("Error Trace %s\n", #x)
 
+#define KERNEL_PROMPT_UNKNOWN_COMMAND "Unknown command:"
+
+// Makro, um eine Funktion nach Namen aufzurufen (ohne Parameter)
+#define CALL_FUNCTION_ALIAS(funcName, alias) \
+    else if (strcmp(input, #funcName) == 0) { \
+        alias(); \
+    }
 
 // Makro, um eine Funktion nach Namen aufzurufen (ohne Parameter)
 #define CALL_FUNCTION(funcName) \

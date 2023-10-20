@@ -1,6 +1,3 @@
-
-
-
 void fmt_timespan(unsigned int timestamp_ms, unsigned char* strUptime) {
     unsigned int ms_per_day = 86400000; // Millisekunden pro Tag
     unsigned int ms_per_hour = 3600000; // Millisekunden pro Stunde

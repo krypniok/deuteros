@@ -129,6 +129,8 @@ uint8_t read_keyboard_data() {
     return port_byte_in(0x60);
 }
 
+unsigned char char_from_key(uint8_t scancode);
+
 static void keyboard_callback(registers_t *regs) {
     uint8_t scancode = port_byte_in(0x60);
 
@@ -158,6 +160,10 @@ static void keyboard_callback(registers_t *regs) {
             // Handle regular scancode here
         }
     }
+
+    uint8_t key = scancode;
+    uint8_t chr = char_from_key(key);
+    handle_invisible_keypress(chr);
 }
 
 

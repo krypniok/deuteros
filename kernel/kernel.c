@@ -131,63 +131,16 @@ void pf() {
   //  printframe(2, 2, 74, 23, FG_BRIGHT_WHITE | BG_BLUE);
 }
 
-void dtmf() {
-    playDTMF("*31#0461#");    
-}
 
-void process_input(const char *input) {
-    int len = strlen(input);
-    int i = 0;
-    char token[256]; // Annahme: Maximale Länge eines Tokens ist 255 Zeichen
-
-    while (i < len) {
-        int token_index = 0;
-
-        // Token sammeln, bis \a oder das Ende des Strings erreicht ist
-        while (i < len && input[i] != '\a') {
-            token[token_index++] = input[i++];
-        }
-
-        // Null-Terminator hinzufügen
-        token[token_index] = '\0';
-
-        // Prüfen, ob das Token "freq:len" ist
-        char *colon = strchr(token, ':');
-        if (colon != NULL) {
-            // Interpretieren als Frequenz und Länge
-            int freq, len;
-            if (sscanf(token, "%d:%d", &freq, &len) == 2) {
-                printf("Bell: Frequency=%d ", freq);
-                printf("Length=%d\n", len);
-                beep(freq, len);
-            }
-        } else if (token_index > 0) { // Nur wenn Token nicht leer ist
-            // Interpretieren als Text für eSpeak
-            printf("eSpeak: %s\n", token);
-            playDTMF(token);
-        }
-
-        i++; // Zum nächsten Zeichen gehen (Überspringen von \a)
-    }
-}
-
-int bell() {
-    const char *input = "\a0123456789\a\a440:500\a\a*31#9876543210#\a";
-    process_input(input);
-    return 0;
-}
 
 void killtimer() {
     remove_sub_timer(0);
 }
 
-
 int restart() {
     longjmp(&kernel_env, 0);
     return 0;
 }
-
-
 
 void loaddisk() {
     printf("Loading disk... to 0x100000\n");
@@ -204,7 +157,6 @@ void cat(const char *addr) {
     printf("\n");
 }
 
-
 int keycodes() {
     while (1) {
         uint8_t scancode = getkey();
@@ -218,11 +170,18 @@ int keycodes() {
     sleep(33);
 }
 
+void kernel_console_clear() {
+        clear_screen();
+        set_cursor(0);
+}
+
+
 void execute_command(char *input) {
     int cursor = get_cursor();
     if (strcmp(input, "") == 0) { goto none; }
 
     CALL_FUNCTION(memtest)
+    CALL_FUNCTION_ALIAS(cls, kernel_console_clear)
     CALL_FUNCTION(killtimer)
     CALL_FUNCTION(bell)
     CALL_FUNCTION(snaketext)
@@ -231,7 +190,6 @@ void execute_command(char *input) {
     CALL_FUNCTION(tinysql2)
     CALL_FUNCTION(restart)
     CALL_FUNCTION(main_c)
-    CALL_FUNCTION(dtmf)
     CALL_FUNCTION(editor_main)
     CALL_FUNCTION(editor_main2)
     CALL_FUNCTION(printlogo)
@@ -259,16 +217,10 @@ void execute_command(char *input) {
     CALL_FUNCTION_WITH_STR(printf)
     CALL_FUNCTION_WITH_2ARGS_AND_STR(searchs)
 
-    else if (strcmp(input, "clr") == 0 || strcmp(input, "rst") == 0)
-    {
-        clear_screen();
-        set_cursor(0);
-    }
     else
     {
-        print_string("Unknown command: ");
-        print_string(input);
-        print_nl();
+        printf("%s ", KERNEL_PROMPT_UNKNOWN_COMMAND, input);
+        printf("%s\n", input);
     }
     printf("%c ", KERNEL_PROMPT_CHAR);
     return;
@@ -282,26 +234,26 @@ int kernel_console_program() {
     while (1) {
         uint8_t key = getkey();
         uint8_t chr = char_from_key(key);
-        HandleKeypress(chr);
 
-            if (key == SC_BACKSPACE) {
-                if (backspace(kernel_console_key_buffer)) {
-                    print_backspace();
-                }
-            } else if (key == SC_ENTER) {
-                clear_cursor();
-                print_nl();
-                execute_command(kernel_console_key_buffer);
-                kernel_console_key_buffer[0] = '\0';
-            } 
-            else if (key == SC_F1) {
-                print_nl();
-                ramdisk_test();
+        if (key == SC_BACKSPACE) {
+            if (backspace(kernel_console_key_buffer)) {
+                print_backspace();
             }
-            else {
-                append(kernel_console_key_buffer, chr);
-                char str[2] = {chr, '\0'};
-                print_string(str);
-            }
+        } else if (key == SC_ENTER) {
+            clear_cursor();
+            print_nl();
+            execute_command(kernel_console_key_buffer);
+            kernel_console_key_buffer[0] = '\0';
+        } 
+        else if (key == SC_F1) {
+            print_nl();
+            ramdisk_test();
+            printf("%c ", KERNEL_PROMPT_CHAR);
         }
+        else {
+            append(kernel_console_key_buffer, chr);
+            char str[2] = {chr, '\0'};
+            print_string(str);
+        }
+    }
 }

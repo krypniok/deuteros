@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #define DTMF_0_FREQ 941
 #define DTMF_1_FREQ 697
 #define DTMF_2_FREQ 770
@@ -71,6 +73,48 @@ void playDTMF(const char *sequence) {
         beep(frequency, 50); // Spielt den Ton für 500 Millisekunden ab (kann angepasst werden).
         sleep(50); // Pausiert für 100 Millisekunden zwischen den Tönen (kann angepasst werden).
     }
+}
+
+void process_sound_string(const char *input) {
+    int len = strlen(input);
+    int i = 0;
+    char token[256]; // Annahme: Maximale Länge eines Tokens ist 255 Zeichen
+
+    while (i < len) {
+        int token_index = 0;
+
+        // Token sammeln, bis \a oder das Ende des Strings erreicht ist
+        while (i < len && input[i] != '\a') {
+            token[token_index++] = input[i++];
+        }
+
+        // Null-Terminator hinzufügen
+        token[token_index] = '\0';
+
+        // Prüfen, ob das Token "freq:len" ist
+        char *colon = (char*)strchr(token, ':');
+        if (colon != NULL) {
+            // Interpretieren als Frequenz und Länge
+            int freq, len;
+            if (sscanf(token, "%d:%d", &freq, &len) == 2) {
+                printf("Bell: Frequency=%d ", freq);
+                printf("Length=%d\n", len);
+                beep(freq, len);
+            }
+        } else if (token_index > 0) { // Nur wenn Token nicht leer ist
+            // Interpretieren als Text für eSpeak
+            printf("DTMF: %s\n", token);
+            playDTMF(token);
+        }
+
+        i++; // Zum nächsten Zeichen gehen (Überspringen von \a)
+    }
+}
+
+int bell() {
+    const char *input = "\a0123456789\a\a440:500\a\a*31#9876543210#\a";
+    process_sound_string(input);
+    return 0;
 }
 
 int sscanf(const char *str, const char *format, int *arg1, int *arg2) {
