@@ -15,12 +15,12 @@
 #define KERNEL_PROMPT_CHAR 0x10
 
 static char kernel_console_key_buffer[1024];
-jmp_buf kernel_env;
+jmp_buf g_jmpKernelMain;
 
 bool g_bKernelShouldStop = false;
 bool g_bKernelInitialised = false;
-
-
+int g_iKernelRevnum = REVISION_NUMBER;
+unsigned char* g_strKernelRevdate = REVISION_DATE;
 
 unsigned char kernel_version_string[80];
 
@@ -28,13 +28,12 @@ int kernel_console_program();
 void loaddisk();
 
 void kernel_main() {
-    setjmp(&kernel_env);
+    setjmp(&g_jmpKernelMain);
     set_color(WHITE_ON_BLACK);
     clear_screen();
-    int revnum = REVISION_NUMBER;
-    unsigned char* revdate = REVISION_DATE;
-    sprintf(kernel_version_string, "DeuterOS 0.%d (%s)\n", (void*)&revnum, (void*)&revdate);
-    printf("%s", kernel_version_string);
+
+    //sprintf(kernel_version_string, "DeuterOS 0.%d (%s)\n", (void*)&g_iKernelRevnum, (void*)&g_strKernelRevdate);
+    //printf("%s", kernel_version_string);
 
     if(! g_bKernelInitialised) {
         // print_string("Installing interrupt service routines (ISRs).\n");
@@ -47,6 +46,8 @@ void kernel_main() {
         init_keyboard();
 
         init_memory();
+
+        init_dynamic_mem();
 
         //   print_string("A20 Line was activated by the MBR.\n");
         //   enable_a20_line();
@@ -78,14 +79,20 @@ end_of_kernel:
     printf("P.S. Why is this still working when the CPU is officially stopped (hlt) ?\n");
 }
 
-
+#define printlist print_select_list_horizontal
 
 void kernel_console_execute_command(char *input) {
     int cursor = get_cursor();
     if (strcmp(input, "") == 0) { goto none; }
 
+    CALL_FUNCTION(msgbox)
+    CALL_FUNCTION_ALIAS(pl, printlist)
     CALL_FUNCTION(memtest)
     CALL_FUNCTION_ALIAS(cls, kernel_console_clear)
+        CALL_FUNCTION_ALIAS(clear, kernel_console_clear)
+            CALL_FUNCTION_ALIAS(clr, kernel_console_clear)
+                CALL_FUNCTION_ALIAS(rst, kernel_console_clear)
+                    CALL_FUNCTION_ALIAS(reset, kernel_console_clear)
     CALL_FUNCTION(killtimer)
     CALL_FUNCTION(bell)
     CALL_FUNCTION(snaketext)
@@ -108,7 +115,6 @@ void kernel_console_execute_command(char *input) {
     CALL_FUNCTION(keycodes)
     CALL_FUNCTION(exit)
     CALL_FUNCTION(loaddisk)
-    CALL_FUNCTION(pf)
     CALL_FUNCTION(printascii)
     CALL_FUNCTION_WITH_ARG(cat)
     CALL_FUNCTION_WITH_ARG(hexviewer)
@@ -118,6 +124,9 @@ void kernel_console_execute_command(char *input) {
     CALL_FUNCTION_WITH_2ARGS(memset)
     CALL_FUNCTION_WITH_3ARGS(memcpy)
     CALL_FUNCTION_WITH_3ARGS(searchb)
+
+    CALL_FUNCTION_WITH_3ARGS(beep_up)
+
     CALL_FUNCTION_WITH_STR(printf)
     CALL_FUNCTION_WITH_2ARGS_AND_STR(searchs)
 
@@ -139,6 +148,8 @@ int kernel_console_program() {
         uint8_t key = getkey();
         uint8_t chr = char_from_key(key);
 
+        // if(key < 128) beep(rand_range(440, 4400), rand_range(10, 30));
+
         if (key == SC_BACKSPACE) {
             if (backspace(kernel_console_key_buffer)) {
                 print_backspace();
@@ -149,9 +160,8 @@ int kernel_console_program() {
             kernel_console_execute_command(kernel_console_key_buffer);
             kernel_console_key_buffer[0] = '\0';
         } 
-        else if (key == SC_F1) {
-            print_nl();
-            ramdisk_test();
+        else if (key == SC_F1 && is_key_pressed(SC_LEFT_CTRL)) {
+            editor_main2();
             printf("%c ", KERNEL_PROMPT_CHAR);
         }
         else {

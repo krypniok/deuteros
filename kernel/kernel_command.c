@@ -8,7 +8,7 @@
 #include "../cpu/jmpbuf.h"
 
 extern bool g_bKernelShouldStop;
-extern jmp_buf kernel_env;
+extern jmp_buf g_jmpKernelMain;
 
 void searchb(uint32_t address, uint32_t size, uint32_t byte) {
         printf("Searching %d\n", byte);
@@ -58,22 +58,18 @@ void random() {
     }
 }  
 
-void pf() {
-    printframe_caption(30, 7, 20, 10, FG_WHITE | BG_LIGHT_BLUE, " Question ");
-//  printframe(2, 2, 74, 23, FG_BRIGHT_WHITE | BG_BLUE);
-}
 
 void killtimer() {
     remove_sub_timer(0);
 }
 
 int restart() {
-    longjmp(&kernel_env, 0);
+    longjmp(&g_jmpKernelMain, 0);
     return 0;
 }
 
 void loaddisk() {
-    printf("Loading disk... to 0x100000\n");
+//    printf("Loading Disk (1.44MB) to 0x100000\n");
     for(unsigned int i=0; i<2880; i++) {
         read_from_disk(i, (void*)0x100000+(512*i), 512);
     }
@@ -100,7 +96,99 @@ int keycodes() {
     sleep(33);
 }
 
+void beep_up(int startfreq, int endfreq, int duration) {
+    for (int i = 440; i < 880; i++) {
+        beep(i, 10);
+    }
+}
+
 void kernel_console_clear() {
         clear_screen();
         set_cursor(0);
 }
+
+    int message_box(int x, int y, int w, int h, unsigned char color, unsigned char* caption, unsigned char* message, unsigned char num_buttons) {
+        unsigned int old_color = get_color();
+        unsigned char len = strlen(caption);
+        unsigned char offset = (w - len) / 2;
+        set_cursor_xy(x, y);
+        printf("%c", 0xC9); // ecke links oben
+     
+        for (int col = 0; col < (w-offset-len/2)-5; col++) { printf("%c", 0xCD); } // balken oben
+        printf("%s", caption); // balken oben
+        for (int col = 0; col < (w-offset-len/2)-5; col++) { printf("%c", 0xCD); } // balken oben
+
+        printf("%c\n", 0xBB); // ecke rechts oben
+        y++;
+        for(int row=0; row<h-2; row++) {
+            set_cursor_xy(x, y);
+            printf("%c", 0xBA); // balken links
+            for (int col = 0; col < w; col++) { printf("%c", ' '); } // leerzeichen
+            printf("%c\n", 0xBA); // balken rechts
+            y++;
+        }
+        set_cursor_xy(x, y);
+        printf("%c", 0xC8); // ecke links unten
+        for (int col = 0; col < w; col++) { printf("%c", 0xCD); } // balken unten
+        printf("%c\n", 0xBC); // ecke rechts unten
+        set_color(color);
+        set_cursor_xy(x + 2, y - h + 3);
+        printf("%s", message);
+        set_color(old_color);
+        unsigned char* buttons[3] = {"Yes", "No", "Abort"};
+        int selected = 0;
+        unsigned char old_color2 = get_color();
+        hidecursor();
+        while (1) {
+            uint8_t scancode = getkey();
+            if (scancode == SC_KEYPAD_4) {
+                if(selected > 0) selected--;
+            }
+            else if (scancode == SC_KEYPAD_6) {
+                if(selected < num_buttons-1) selected++;
+            }
+            else if (scancode == SC_ESC) {
+                set_color(old_color2);
+                showcursor();
+                return -1;
+            }
+            else if (scancode == SC_ENTER) {
+                goto none;
+            }
+            //clear_screen();
+            for(int i=0; i<num_buttons; i++) {
+                if(i == selected) {
+                    set_color(FG_BRIGHT_WHITE | BG_LIGHT_BLUE);
+                    printf("%s", buttons[i]);
+                } else {
+                    set_color(FG_BRIGHT_WHITE | BG_BLACK);
+                    printf("%s", buttons[i]);
+                }
+                set_color(FG_BRIGHT_WHITE | BG_BLACK);
+                if(i < num_buttons-1) printf(" | ");
+            }
+            printf("\n");
+            set_color(old_color2);        
+        }
+    none:
+        set_color(old_color2);
+        printf("Selected: %s\n", buttons[selected]);
+        showcursor();
+        return selected;
+    }
+
+    void msgbox() {
+        unsigned char* question = " question ? ";
+        unsigned char* message = "This is 3 buttons.";
+        int result = message_box(30, 7, 40, 10, FG_WHITE | BG_LIGHT_BLUE, question, message, 3);
+        if (result == 0) {
+            printf("Yes was selected.\n");
+        } else if (result == 1) {
+            printf("No was selected.\n");
+        } else if (result == 2) {
+            printf("Abort was selected.\n");
+        } else {
+            printf("Message box was cancelled.\n");
+        }
+    }
+    
